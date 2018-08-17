@@ -35,10 +35,12 @@ class KeyCode {
 
 class SymbolChar {
   BLANK: string = '·'  // 空白画布字符
-  SUBJECT: string = 'i'   // 玩家控制实体的字符
+  SUBJECT: string = '♀'   // 玩家控制实体的字符
   OBSTACLE: string = 'x' // 障碍物符号
   TARGET: string = '$'
   FOG: string = '-'
+  BOMB: string = 'б'
+  TORCH: string = 'i'
 
   LEFT_TOP_CORNER: string = '┌'   // 画布制表符
   RIGHT_TOP_CORNER: string = '┐'   // 画布制表符
@@ -46,6 +48,10 @@ class SymbolChar {
   RIGHT_BOTTOM_CORNER: string = '┘'   // 画布制表符
   HORIZONTAL: string = '-'   // 画布制表符
   VERTICAL: string = '|'   // 画布制表符
+
+  getPropertySymbol(string: string) {
+    return (this as any)[string.toUpperCase()]
+  }
 }
 
 const KEYCODE = new KeyCode();

@@ -14,6 +14,7 @@
       ]
   },
   "files": [
+    "./src/utils.ts",
     "./src/config.ts",
     "./src/property.ts",
     "./src/info.ts",

@@ -9,6 +9,19 @@ enum logMode {
     success,
 }
 
+interface CurrentProperty {
+    x: number,
+    y: number,
+    object: Property
+}
+
+let byLevel = [
+    { propertyAppear: 0.1, obstacle: 0.2 },
+    { propertyAppear: 0.05, obstacle: 0.25 },
+    { propertyAppear: 0.02, obstacle: 0.3 },
+    { propertyAppear: 0.01, obstacle: 0.4 },
+]
+
 class Game {
     // 配置常量
     width = 21;
@@ -20,16 +33,20 @@ class Game {
     targetScene = 1; // 宝物视野
 
     // 变量
-    scene: number = 0; // 角色视野变量
+    // scene: number = 0; // 角色视野变量
     currentX: number = 0; // 玩家当前位置
     currentY: number = 0; // 玩家当前位置
     targetX = 0    // 胜利目标当前位置
     targetY = 0    // 胜利目标当前位置
+    properties: Property[] = [] // 用户所持道具栏
+    property: CurrentProperty = null; // 当前屏幕出现的道具
     stopId: number;
     order: number; // 用户指令寄存
     content = '';
-    bombList: Bomb[]
     dotSet: boolean[][] = []; // 障碍物点集
+    level: number = 0 // 关卡数
+    startTime: number = 0 // 玩家开始游戏时间
+    deadTimes: number = 0 // 玩家死亡次数
     /**
      * 点集，格式如下：
      * [
@@ -45,7 +62,7 @@ class Game {
     }
     constructor() {
         // 变量
-        this.scene = this.originScene; // 角色视野变量
+        // this.scene = this.originScene; // 角色视野变量
         this.currentX = this.originX; // 玩家当前位置
         this.currentY = this.originY; // 玩家当前位置
         this.targetX = 0    // 胜利目标当前位置
@@ -53,7 +70,6 @@ class Game {
         this.stopId = null;
         this.order = null; // 用户指令寄存
         this.content = '';
-        this.bombList = [new Bomb()]
         this.dotSet = []; // 障碍物点集
         /**
          * 点集，格式如下：
@@ -70,13 +86,26 @@ class Game {
         this.randomPosition('target');
     }
 
+    get bombList() {
+        return this.properties.filter(item => item.type === 'bomb')
+    }
+
+    get scene(): number {
+        let sightByProperty: number = 0
+        this.properties.forEach(property => {
+            sightByProperty += property.sight
+        })
+
+        return this.originScene + sightByProperty
+    }
+
     // 初始化点集
     initDotSet() {
         // 若有x行，y列，期望通过this.dotSet[y][x]来取值：
         for (let y = 0; y < this.width; y++) {
             this.dotSet[y] = [];
             for (let x = 0; x < this.height; x++) {
-                if (this.possibility(0.2)) {
+                if (Utils.possibility(byLevel[this.level].obstacle)) {
                     this.dotSet[y][x] = true;
                 } else {
                     this.dotSet[y][x] = false;
@@ -98,6 +127,19 @@ class Game {
         }
     }
 
+    createRandomProperty() {
+        if (this.property) {
+            return
+        }
+        if (Utils.possibility(byLevel[this.level].propertyAppear)) {
+            let { x, y } = Utils.createRandomPosition(this.width, this.height, this.dotSet)
+            this.property = {
+                x, y,
+                object: Utils.possibility(0.5) ? new Torch() : new Bomb()
+            }
+        }
+    }
+
     // 进行一节游戏
     go() {
         // 主要流程函数
@@ -110,26 +152,46 @@ class Game {
         // 3. 对着数据集进行合法判定，判断游戏是否胜利或者失败
         this.check();
 
+        // 4. 做点其他的，比如随机生成一轮道具
+        this.createRandomProperty()
+
         // 都没问题则，执行下一轮，循环有gameStart方法控制
     }
 
-    reset() {
+    reset(clearAll = false) {
         this.content = '';
         this.order = null;
         this.initDotSet();
         this.randomPosition('current'); // 必须在initDotSet后面
         this.randomPosition('target'); // 必须后面
+
+        if (clearAll) {
+            // 重置道具相关
+            this.properties = []
+            this.property = null
+            this.level = 0
+        }
     }
 
     render() {
         console.clear();
+        this.content = '';
+        this.buildHeader();
         this.buildContent();
         // 渲染方法：通过log将字符串输出
         this.log(logMode.log, this.content);
     }
+    buildHeader() {
+        let header = `您现在在第${this.level + 1}关
+您现在有${this.properties.length}件道具：
+火把${ this.properties.filter(property => property.type === 'torch').length || 0}件，
+炸弹${ this.properties.filter(property => property.type === 'bomb').length || 0}个。
+------
+`
+        this.content += header;
+    }
 
     buildContent() {
-        this.content = '';
         // console.log(this.currentX, this.currentY)
         for (let i = 0; i < this.width; i++) {
             if (i === 0) {
@@ -168,7 +230,7 @@ class Game {
         // 判断是否在点集里
         if (
             // 明亮自身周围
-            this.calcDistance(
+            Utils.calcDistance(
                 this.currentX,
                 this.currentY,
                 x,
@@ -176,7 +238,7 @@ class Game {
                 this.scene,
             )
             // 明亮宝物周围
-            // && this.calcDistance(
+            // && Utils.calcDistance(
             //     this.targetX,
             //     this.targetY,
             //     x,
@@ -189,6 +251,10 @@ class Game {
             this.content += SYMBOL_CHAR.SUBJECT;
         } else if (y === this.targetY && x === this.targetX) {
             this.content += SYMBOL_CHAR.TARGET;
+        } else if (this.property
+            && y === this.property.y
+            && x === this.property.x) {
+            this.content += SYMBOL_CHAR.getPropertySymbol(this.property.object.type);
         } else if (this.dotSet[y][x]) {
             this.content += SYMBOL_CHAR.OBSTACLE;
         } else {
@@ -232,9 +298,9 @@ class Game {
                 break;
             case KEYCODE.SPACE:
             case KEYCODE.B:
-                if (this.bombList.length) {
-                    let bomb = this.bombList.shift()
-
+                let bomb = <Bomb>this.properties.find(property => property.type === 'bomb')
+                if (bomb) {
+                    this.properties = this.properties.filter(item => item !== bomb)
                     bomb.destory(this.currentX, this.currentY, this.dotSet)
                 }
                 break;
@@ -249,24 +315,43 @@ class Game {
          * 1. 人撞到障碍物，游戏结束
          * 2. todo...
          */
-        let gameover = false;
+        let gameEndMode = null;
         let gameoverReason = '';
         let lMode = logMode.error;
 
         if (this.dotSet[this.currentY][this.currentX]) {
-            gameover = true;
+            gameEndMode = 'gameover';
             lMode = logMode.error;
-            gameoverReason = gameInfo.killedByObstacle;
+            gameoverReason = gameInfo.killedByObstacle + gameInfo.gameover;
         }
         if (this.currentX === this.targetX
             && this.currentY === this.targetY) {
-            gameover = true;
             lMode = logMode.success;
-            gameoverReason = gameInfo.gameclear;
+            if (this.level >= byLevel.length - 1) {
+                gameEndMode = 'gameclear';
+            } else {
+                gameEndMode = 'gamecontinue';
+                gameoverReason = gameInfo.gamecontinue;
+            }
+
         }
-        if (gameover) {
-            this.gameOver();
-            this.log(lMode, `${gameoverReason}${gameInfo.gameover}`);
+        if (this.property && this.currentX === this.property.x && this.currentY === this.property.y) {
+            this.properties.push(this.property.object)
+            this.property = null
+        }
+        switch (gameEndMode) {
+            case ('gameover'):
+                this.gameOver();
+                this.log(lMode, gameoverReason);
+                break;
+            case ('gamecontinue'):
+                this.gameContinue();
+                this.log(lMode, gameoverReason);
+                break;
+            case ('gameclear'):
+                this.gameClear();
+                break;
+            default:
         }
     }
 
@@ -286,7 +371,7 @@ class Game {
         }
     }
 
-    // 开始游戏的命令
+    // 重开游戏的命令
     gameStart() {
         this.body.addEventListener('keydown', this.onKeyDown);
         this.stopId = setInterval(() => {
@@ -296,48 +381,63 @@ class Game {
 
     // 游戏结束的命令
     gameOver() {
-        this.reset()
+        this.reset(true);
         this.body.removeEventListener('keydown', this.onKeyDown);
         clearInterval(this.stopId);
-        this.stopId = null
+        this.stopId = null;
+
+        this.deadTimes += 1;
+    }
+
+    // 游戏继续的命令，意为短暂的暂停，进入下一关
+    gameContinue() {
+        this.reset()
+        this.level += 1;
+        this.body.removeEventListener('keydown', this.onKeyDown);
+        clearInterval(this.stopId);
+        this.stopId = null;
+    }
+
+    // 游戏通关，结束计时、清空死亡次数、展示通关时间等
+    gameClear() {
+        this.reset(true)
+        this.body.removeEventListener('keydown', this.onKeyDown);
+        clearInterval(this.stopId);
+        this.stopId = null;
+
+        let endTime = new Date().getTime();
+        this.log(logMode.success, `恭喜通关！此次通关时间为${(endTime - this.startTime) / 1000}秒！死亡${this.deadTimes}次。`);
+
+        this.startTime = new Date().getTime();
+        this.deadTimes = 0;
     }
 
     // 游戏暂停的命令
     gamePause() {
         this.body.removeEventListener('keydown', this.onKeyDown);
         clearInterval(this.stopId);
-        this.stopId = null
+        this.stopId = null;
         console.warn(gameInfo.pause);
     }
 
     // 游戏启动的命令（入口函数）
     run() {
-        // this.gameStart()
+        this.startTime = new Date().getTime();
+
         console.clear();
         this.log(logMode.log, gameInfo.hello);
         this.body.addEventListener('keydown', (e) => {
             if (e.keyCode === KEYCODE.ESC && this.stopId) {
-                this.gamePause()
+                this.gamePause();
             } else if (e.keyCode === KEYCODE.ENTER && !this.stopId) {
-                this.gameStart()
+                this.gameStart();
             }
         })
 
     }
 
-    calcDistance(selfX: number, selfY: number, targetX: number, targetY: number, sceneDistance: number) {
-        let x = Math.abs(targetX - selfX);
-        let y = Math.abs(targetY - selfY);
-        let distance = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2))
-        return distance > sceneDistance
-    }
-
-    possibility(num = 0.5) {
-        return Math.random() <= num
-    }
-
     get body() {
-        return document.body
+        return document.body;
     }
 
     // onEnd() {
@@ -346,10 +446,31 @@ class Game {
     // }
 }
 
-var game = new Game()
+var game = new Game();
 game.run();
 
 /**
 * 左上角为x0y0
 * 右下角为xnyn
 */
+
+(window as any).giveMeSomeBombs = () => {
+    console.log('世间没有什么事情是一个炸弹解决不了的。如果有，那就两个。');
+    game.properties.push(new Bomb(), new Bomb(), new Bomb(), new Bomb());
+}
+
+(window as any).bigBomb = () => {
+    console.log('你仿佛听见雷神在你的掌间轰鸣。');
+    game.properties.push(new Bomb(20));
+}
+
+(window as any).letThereBeLight = () => {
+    console.log('银河汇聚到了你的手中。');
+    game.properties.push(new Torch(15));
+}
+
+/** 两个问题：
+ * 1. 随机刷的道具可能在刺儿上
+ * 2. 提示语不友好
+ * 3. 开始计时只能从游戏运行时算
+ */
