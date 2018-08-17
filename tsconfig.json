@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+      "module": "amd",
+      "noImplicitAny": true,
+      "removeComments": true,
+      "preserveConstEnums": true,
+      "outFile": "./game.js",
+      "sourceMap": true,
+      "target": "es5",
+      "lib": [
+        "dom",
+        "es2015",
+        "es2016"
+      ]
+  },
+  "files": [
+    "./src/config.ts",
+    "./src/property.ts",
+    "./src/info.ts",
+    "./src/game.ts",
+  ]
+}

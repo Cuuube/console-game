@@ -1,0 +1,24 @@
+{
+  "name": "console-game",
+  "version": "0.0.0",
+  "description": "",
+  "main": "game.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "tsc && http-server"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cuuube/console-game.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Cuuube/console-game/issues"
+  },
+  "homepage": "https://github.com/Cuuube/console-game#readme",
+  "dependencies": {
+    "http-server": "^0.11.1",
+    "typescript": "^3.0.1"
+  }
+}
