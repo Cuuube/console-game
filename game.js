@@ -476,8 +476,6 @@ var Game = (function () {
     });
     return Game;
 }());
-var game = new Game();
-game.run();
 window.giveMeSomeBombs = function () {
     console.log('世间没有什么事情是一个炸弹解决不了的。如果有，那就两个。');
     game.properties.push(new Bomb(), new Bomb(), new Bomb(), new Bomb());
@@ -490,4 +488,6 @@ window.letThereBeLight = function () {
     console.log('银河汇聚到了你的手中。');
     game.properties.push(new Torch(15));
 };
+var game = new Game();
+game.run();
 //# sourceMappingURL=game.js.map

@@ -446,14 +446,6 @@ class Game {
     // }
 }
 
-var game = new Game();
-game.run();
-
-/**
-* 左上角为x0y0
-* 右下角为xnyn
-*/
-
 (window as any).giveMeSomeBombs = () => {
     console.log('世间没有什么事情是一个炸弹解决不了的。如果有，那就两个。');
     game.properties.push(new Bomb(), new Bomb(), new Bomb(), new Bomb());
@@ -468,6 +460,16 @@ game.run();
     console.log('银河汇聚到了你的手中。');
     game.properties.push(new Torch(15));
 }
+
+
+var game = new Game();
+game.run();
+
+/**
+* 左上角为x0y0
+* 右下角为xnyn
+*/
+
 
 /** 两个问题：
  * 1. 随机刷的道具可能在刺儿上
