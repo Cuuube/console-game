@@ -19,5 +19,6 @@
     "./src/property.ts",
     "./src/info.ts",
     "./src/game.ts",
+    // "./src/level.ts",
   ]
 }
