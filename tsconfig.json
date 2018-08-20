@@ -17,8 +17,12 @@
     "./src/utils.ts",
     "./src/config.ts",
     "./src/property.ts",
+    "./src/cheat.ts",
     "./src/info.ts",
+    "./src/object.ts",
+    "./src/subject.ts",
+    "./src/level.ts",
     "./src/game.ts",
-    // "./src/level.ts",
+    "./index.ts",
   ]
 }

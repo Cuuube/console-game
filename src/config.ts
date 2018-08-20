@@ -50,11 +50,16 @@ namespace Game {
     HORIZONTAL: string = '-'   // 画布制表符
     VERTICAL: string = '|'   // 画布制表符
 
-    getPropertySymbol(string: string) {
-      return (this as any)[string.toUpperCase()]
+    getPropertySymbol(propertyType: number) {
+      switch (propertyType) {
+        case PropertyType.bomb:
+          return this.BOMB
+        case PropertyType.torch:
+          return this.TORCH
+      }
     }
   }
 
-  const KEYCODE = new KeyCode();
-  const SYMBOL_CHAR = new SymbolChar();
+  export const KEYCODE = new KeyCode();
+  export const SYMBOL_CHAR = new SymbolChar();
 }

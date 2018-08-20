@@ -1,5 +1,5 @@
 namespace Game {
-    class GameInfo {
+    export class GameInfo {
         hello = `
         ------
         注意：请将鼠标移到页面内点击一下，才能使用键盘按键。
@@ -25,6 +25,7 @@ namespace Game {
         gameover = `游戏结束！请按[ENTER]键重新开始游戏。`
         gamecontinue = `恭喜您胜利！请按[ENTER]键进入下一关。`
         killedByObstacle = `您撞到了障碍物。`
-      }
-      const gameInfo = new GameInfo();
+    }
+    
+    export const gameInfo = new GameInfo();
 }
