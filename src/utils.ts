@@ -88,6 +88,7 @@ namespace Game {
     export class Console {
         log(...params: any[]) {
             window.console.log(...params);
+            // console.log('%c' + 'str', 'padding:2px 5px;background:black;color:white;border: 1px solid black;border-radius: 3px;')
         }
 
         error(...params: any[]) {
@@ -118,6 +119,17 @@ namespace Game {
 
         off(handleName: string, callBack: Function) {
             this.host.removeEventListener(handleName, callBack);
+        }
+
+        static readyToStart() {
+            const startHandler = (e: KeyboardEvent) => {
+                if (e.shiftKey && e.ctrlKey && e.keyCode === Game.KEYCODE.P) {
+                    var game = new Game.GameController();
+                    game.run();
+                    document.body.removeEventListener('keydown', startHandler);
+                }
+            }
+            document.body.addEventListener('keydown', startHandler);
         }
     }
     export const eventRegister = new EventRegister();

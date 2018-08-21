@@ -115,6 +115,16 @@ var Game;
         EventRegister.prototype.off = function (handleName, callBack) {
             this.host.removeEventListener(handleName, callBack);
         };
+        EventRegister.readyToStart = function () {
+            var startHandler = function (e) {
+                if (e.shiftKey && e.ctrlKey && e.keyCode === Game.KEYCODE.P) {
+                    var game = new Game.GameController();
+                    game.run();
+                    document.body.removeEventListener('keydown', startHandler);
+                }
+            };
+            document.body.addEventListener('keydown', startHandler);
+        };
         return EventRegister;
     }());
     Game.EventRegister = EventRegister;
@@ -145,10 +155,12 @@ var Game;
             this.A = 65;
             this.S = 83;
             this.D = 68;
+            this.R = 82;
             this.B = 66;
             this.U = 85;
             this.I = 73;
             this.O = 79;
+            this.P = 80;
             this.J = 74;
             this.K = 75;
             this.L = 76;
@@ -170,6 +182,10 @@ var Game;
             this.RIGHT_BOTTOM_CORNER = '┘';
             this.HORIZONTAL = '-';
             this.VERTICAL = '|';
+            this.BLOCK = '■';
+            this.UNBRELLA = '☂';
+            this.ATOM = '⚛';
+            this.YINYANG = '☯';
         }
         SymbolChar.prototype.getPropertySymbol = function (propertyType) {
             switch (propertyType) {
@@ -429,23 +445,46 @@ var Game;
             this.x = 0;
             this.y = 0;
             this.props = [];
+            this.dataSetMeta = [
+                { x: 0, y: 0 },
+            ];
+            this.dataSet = [];
+            this.maxX = 0;
+            this.maxY = 0;
+            this.minX = 0;
+            this.minY = 0;
             this.originalVision = 10;
             this.symbol = Game.SYMBOL_CHAR.SUBJECT;
         }
         Subject.prototype.moveTo = function (x, y, dataSet) {
             var height = dataSet.length;
             var width = dataSet[0].length;
-            if (x < 0
-                || y < 0
-                || x > width - 1
-                || y > height - 1) {
+            if (x + this.minX < 0
+                || y + this.minY < 0
+                || x + this.maxX > width - 1
+                || y + this.maxY > height - 1) {
                 return;
             }
             this.x = x;
             this.y = y;
+            this.computed();
         };
         Subject.prototype.inSelf = function (x, y) {
-            return this.x === x && this.y === y;
+            return this.dataSet.some(function (position) {
+                var sameX = position.x === x;
+                var sameY = position.y === y;
+                return sameX && sameY;
+            });
+        };
+        Subject.prototype.touch = function (map) {
+            var _this = this;
+            var signal = [];
+            this.dataSet.forEach(function (_a) {
+                var x = _a.x, y = _a.y;
+                signal.push(map[y][x].touch(_this));
+            });
+            signal = signal.sort();
+            return signal.pop();
         };
         Subject.prototype.useBomb = function (dataSet) {
             var _a = this, x = _a.x, y = _a.y;
@@ -466,18 +505,54 @@ var Game;
             enumerable: true,
             configurable: true
         });
+        Subject.prototype.computed = function () {
+            var xSet = this.dataSetMeta
+                .map(function (posision) { return posision.x; })
+                .sort();
+            var ySet = this.dataSetMeta
+                .map(function (posision) { return posision.y; })
+                .sort();
+            this.minX = xSet[0];
+            this.minY = ySet[0];
+            this.maxX = xSet[xSet.length - 1];
+            this.maxY = ySet[ySet.length - 1];
+            this.calcDataSet();
+        };
+        Subject.prototype.calcDataSet = function () {
+            var _this = this;
+            this.dataSet = this.dataSetMeta.map(function (posision) { return ({
+                x: posision.x + _this.x,
+                y: posision.y + _this.y,
+            }); });
+        };
         return Subject;
     }());
     Game.Subject = Subject;
+    var BlockSubject = (function (_super) {
+        __extends(BlockSubject, _super);
+        function BlockSubject() {
+            var _this = _super !== null && _super.apply(this, arguments) || this;
+            _this.dataSetMeta = [
+                { x: -1, y: 0 },
+                { x: 1, y: 0 },
+                { x: 0, y: 0 },
+                { x: 0, y: -1 },
+            ];
+            _this.symbol = Game.SYMBOL_CHAR.BLOCK;
+            return _this;
+        }
+        return BlockSubject;
+    }(Subject));
+    Game.BlockSubject = BlockSubject;
 })(Game || (Game = {}));
 var Game;
 (function (Game) {
     var GameSignal;
     (function (GameSignal) {
         GameSignal[GameSignal["none"] = 0] = "none";
-        GameSignal[GameSignal["over"] = 1] = "over";
-        GameSignal[GameSignal["continue"] = 2] = "continue";
-        GameSignal[GameSignal["clear"] = 3] = "clear";
+        GameSignal[GameSignal["continue"] = 1] = "continue";
+        GameSignal[GameSignal["clear"] = 2] = "clear";
+        GameSignal[GameSignal["over"] = 3] = "over";
     })(GameSignal = Game.GameSignal || (Game.GameSignal = {}));
     var Level = (function () {
         function Level(game) {
@@ -485,6 +560,7 @@ var Game;
             this.game = game;
             this.width = 21;
             this.height = 21;
+            this.possibility = 0.01;
             this.content = '';
             this.levelName = '0';
             this.dataSet = null;
@@ -492,6 +568,7 @@ var Game;
             this.propManager = new Game.PropManager(this.dataSet);
             this.subjectPosition = null;
             this.targetPosition = null;
+            this.isPause = false;
             this.onKeyDown = function (event) {
                 _this.order = event.keyCode;
             };
@@ -505,6 +582,7 @@ var Game;
             this.initSubject();
             this.propManager = new Game.PropManager(this.dataSet);
             this.propManager.removeAllProps();
+            this.isPause = false;
         };
         Level.prototype.initSubject = function () {
             if (!this.subjectPosition) {
@@ -523,7 +601,7 @@ var Game;
             for (var y_2 = 0; y_2 < this.width; y_2++) {
                 this.dataSet[y_2] = [];
                 for (var x_2 = 0; x_2 < this.height; x_2++) {
-                    if (Game.Utils.possibility(0.2)) {
+                    if (Game.Utils.possibility(this.possibility)) {
                         this.dataSet[y_2][x_2] = new Game.ObstacleMO();
                     }
                     else {
@@ -581,8 +659,16 @@ var Game;
             if (Game.Utils.calcDistance(currentX, currentY, x, y, this.subject.vision)) {
                 this.content += Game.SYMBOL_CHAR.FOG;
             }
+            else if (currentX === x && currentY === y) {
+                this.content += Game.SYMBOL_CHAR.YINYANG;
+            }
             else if (this.subject.inSelf(x, y)) {
-                this.content += this.subject.symbol;
+                if (this.isPause) {
+                    this.content += Game.SYMBOL_CHAR.BLOCK;
+                }
+                else {
+                    this.content += this.subject.symbol;
+                }
             }
             else {
                 this.content += this.dataSet[y][x].symbol;
@@ -590,8 +676,14 @@ var Game;
         };
         Level.prototype.handleControll = function () {
             var keyCode = this.order;
-            var _a = this.subject, x = _a.x, y = _a.y;
             this.order = null;
+            var _a = this.subject, x = _a.x, y = _a.y;
+            if (this.isPause) {
+                if (keyCode === Game.KEYCODE.P) {
+                    this.levelPlay();
+                }
+                return;
+            }
             switch (keyCode) {
                 case Game.KEYCODE.A:
                 case Game.KEYCODE.LEFT:
@@ -613,21 +705,36 @@ var Game;
                 case Game.KEYCODE.B:
                     this.subject.useBomb(this.dataSet);
                     break;
+                case Game.KEYCODE.P:
+                    this.levelPause();
+                    return;
+                case Game.KEYCODE.R:
+                    this.levelReplay();
+                    return;
             }
             this.subject.moveTo(x, y, this.dataSet);
         };
         Level.prototype.check = function () {
+            if (this.isPause) {
+                return;
+            }
             var _a = this.subject, x = _a.x, y = _a.y;
-            return this.dataSet[y][x].touch(this.subject);
+            return this.subject.touch(this.dataSet);
         };
         Level.prototype.otherActions = function () {
+            if (this.isPause) {
+                return;
+            }
             this.propManager.create();
         };
         Level.prototype.levelPause = function () {
+            this.isPause = true;
         };
         Level.prototype.levelPlay = function () {
+            this.isPause = false;
         };
         Level.prototype.levelReplay = function () {
+            this.reset();
         };
         Level.prototype.unbind = function () {
             Game.eventRegister.off('keydown', this.onKeyDown);

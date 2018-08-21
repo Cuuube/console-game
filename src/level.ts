@@ -24,17 +24,18 @@ namespace Game {
         subject: Subject;
     }
 
-    export enum GameSignal {
+    export enum GameSignal { // 按严重性排序
         none,
-        over,
         continue,
         clear,
+        over,
     }
     
     export class Level implements ILevel {
         // 配置常量
         width = 21;
         height = 21;
+        possibility = 0.01;
     
         // 变量
         order: number; // 用户指令寄存
@@ -47,6 +48,7 @@ namespace Game {
 
         subjectPosition: TPosision = null;
         targetPosition: TPosision = null;
+        isPause: boolean = false;
 
         onKeyDown = (event: KeyboardEvent) => {
             this.order = event.keyCode;
@@ -69,6 +71,8 @@ namespace Game {
             this.initSubject();
             this.propManager = new PropManager(this.dataSet);
             this.propManager.removeAllProps();
+
+            this.isPause = false;
         }
 
         // 初始化主题角色
@@ -77,6 +81,7 @@ namespace Game {
                 this.subjectPosition = Utils.findBlankPosition(this.dataSet);
             }
             let { x, y } = this.subjectPosition;
+            
             this.subject.moveTo(x, y, this.dataSet);
         }
 
@@ -94,7 +99,7 @@ namespace Game {
             for (let y = 0; y < this.width; y++) {
                 this.dataSet[y] = [];
                 for (let x = 0; x < this.height; x++) {
-                    if (Utils.possibility(0.2)) {
+                    if (Utils.possibility(this.possibility)) {
                         this.dataSet[y][x] = new ObstacleMO();
                     } else {
                         this.dataSet[y][x] = new BlankMO();
@@ -198,8 +203,14 @@ namespace Game {
                 )
             ) {
                 this.content += SYMBOL_CHAR.FOG;
+            } else if (currentX === x && currentY === y) {
+                this.content += SYMBOL_CHAR.YINYANG;
             } else if (this.subject.inSelf(x, y)) {
-                this.content += this.subject.symbol;
+                if (this.isPause) {
+                    this.content += SYMBOL_CHAR.BLOCK;
+                } else {
+                    this.content += this.subject.symbol;
+                }
             } else {
                 this.content += this.dataSet[y][x].symbol
             }
@@ -208,8 +219,18 @@ namespace Game {
         // 可覆盖，对于用户按键的处理
         handleControll() {
             let keyCode = this.order;
-            let { x, y } = this.subject;
+            
             this.order = null;
+
+            let { x, y } = this.subject;
+
+            if (this.isPause) {
+                if (keyCode === KEYCODE.P) {
+                    this.levelPlay();
+                }
+                return;
+            }
+
             // 更改坐标
             switch (keyCode) {
                 case KEYCODE.A:
@@ -229,9 +250,15 @@ namespace Game {
                     y += 1;
                     break;
                 case KEYCODE.SPACE:
-                case KEYCODE.B:
+                case KEYCODE.B: // 炸弹
                     this.subject.useBomb(this.dataSet);
                     break;
+                case KEYCODE.P: // 暂停
+                    this.levelPause();
+                    return;
+                case KEYCODE.R: // 重开
+                    this.levelReplay();
+                    return;
     
             }
             // 重新赋值坐标
@@ -239,7 +266,10 @@ namespace Game {
         }
     
         // 可覆盖，条件判定以及处理
-        check(): number { // TODO
+        check(): number {
+            if (this.isPause) {
+                return;
+            }
             /**
              * 检测规则：
              * 1. 人撞到障碍物，游戏结束
@@ -247,26 +277,32 @@ namespace Game {
              */
             let { x, y } = this.subject;
 
-            return this.dataSet[y][x].touch(this.subject);
+            // return this.dataSet[y][x].touch(this.subject);
+            return this.subject.touch(this.dataSet);
         }
 
         otherActions() {
+            if (this.isPause) {
+                return;
+            }
             this.propManager.create();
         }
 
         // 关卡暂停与重新开始
         levelPause() {
             // TODO
+            this.isPause = true;
         }
 
         // 关卡重新激活
         levelPlay() {
-            // TODO
+            this.isPause = false;
         }
 
         // 关卡重开
         levelReplay() {
             // TODO
+            this.reset();
         }
 
         unbind() {

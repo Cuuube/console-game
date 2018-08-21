@@ -23,12 +23,14 @@ namespace Game {
     A: number = 65;
     S: number = 83;
     D: number = 68;
+    R: number = 82;
 
     B: number = 66;
 
     U: number = 85;
     I: number = 73;
     O: number = 79;
+    P: number = 80;
     J: number = 74;
     K: number = 75;
     L: number = 76;
@@ -49,6 +51,11 @@ namespace Game {
     RIGHT_BOTTOM_CORNER: string = '┘'   // 画布制表符
     HORIZONTAL: string = '-'   // 画布制表符
     VERTICAL: string = '|'   // 画布制表符
+
+    BLOCK: string = '■'
+    UNBRELLA: string = '☂'
+    ATOM: string = '⚛'
+    YINYANG: string = '☯'
 
     getPropertySymbol(propertyType: number) {
       switch (propertyType) {

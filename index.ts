@@ -11,5 +11,9 @@
  * 3. 开始计时只能从游戏运行时算
  */
 
+// 将入口隐藏，ctrl + shift + p开始游戏
+// Game.EventRegister.readyToStart();
+// 或者直接开始状态，等待玩家玩
 var game = new Game.GameController();
 game.run();
+
