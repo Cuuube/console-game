@@ -326,6 +326,7 @@ var Game;
         ObjectType[ObjectType["OBSTACLE"] = 2] = "OBSTACLE";
         ObjectType[ObjectType["TARGET"] = 3] = "TARGET";
         ObjectType[ObjectType["PROPS"] = 4] = "PROPS";
+        ObjectType[ObjectType["BLOCK"] = 5] = "BLOCK";
     })(ObjectType = Game.ObjectType || (Game.ObjectType = {}));
     var MapObject = (function () {
         function MapObject() {
@@ -351,92 +352,6 @@ var Game;
         return BlankMO;
     }(MapObject));
     Game.BlankMO = BlankMO;
-    var ObstacleMO = (function (_super) {
-        __extends(ObstacleMO, _super);
-        function ObstacleMO() {
-            var _this = _super !== null && _super.apply(this, arguments) || this;
-            _this.type = ObjectType.OBSTACLE;
-            _this.symbol = Game.SYMBOL_CHAR.OBSTACLE;
-            return _this;
-        }
-        ObstacleMO.prototype.touch = function (subject) {
-            return Game.GameSignal.over;
-        };
-        return ObstacleMO;
-    }(MapObject));
-    Game.ObstacleMO = ObstacleMO;
-    var TargetMO = (function (_super) {
-        __extends(TargetMO, _super);
-        function TargetMO() {
-            var _this = _super !== null && _super.apply(this, arguments) || this;
-            _this.type = ObjectType.TARGET;
-            _this.symbol = Game.SYMBOL_CHAR.TARGET;
-            return _this;
-        }
-        TargetMO.prototype.touch = function (subject) {
-            return Game.GameSignal.continue;
-        };
-        return TargetMO;
-    }(MapObject));
-    Game.TargetMO = TargetMO;
-    var PropMO = (function (_super) {
-        __extends(PropMO, _super);
-        function PropMO(property) {
-            var _this = _super.call(this) || this;
-            _this.property = property;
-            _this.type = ObjectType.PROPS;
-            _this.symbol = '';
-            _this.isProp = true;
-            _this.ontouch = function () { };
-            _this.type = _this.property.type;
-            _this.symbol = Game.SYMBOL_CHAR.getPropertySymbol(_this.property.type);
-            return _this;
-        }
-        PropMO.prototype.touch = function (subject) {
-            subject.props.push(this.property);
-            this.ontouch();
-            return Game.GameSignal.none;
-        };
-        return PropMO;
-    }(MapObject));
-    Game.PropMO = PropMO;
-    var PropManager = (function () {
-        function PropManager(dataSet) {
-            this.dataSet = dataSet;
-            this.MAX_PROP_NUMBER = 1;
-            this.currentPropsNumber = 0;
-            this.basket = [
-                Game.Bomb,
-                Game.Torch,
-            ];
-            this.possibility = 0.1;
-        }
-        PropManager.prototype.create = function (possibility) {
-            var _this = this;
-            if (possibility === void 0) { possibility = this.possibility; }
-            if (Game.Utils.possibility(possibility) && (this.MAX_PROP_NUMBER - this.currentPropsNumber > 0)) {
-                var property = new (Game.Utils.getOne(this.basket))();
-                var propMO = new PropMO(property);
-                var _a = Game.Utils.findBlankPosition(this.dataSet), x_1 = _a.x, y_1 = _a.y;
-                propMO.ontouch = function () {
-                    _this.dataSet[y_1][x_1] = new BlankMO();
-                    _this.currentPropsNumber--;
-                };
-                this.currentPropsNumber++;
-                this.dataSet[y_1][x_1] = propMO;
-            }
-        };
-        PropManager.prototype.removeAllProps = function () {
-            var _this = this;
-            Game.Utils.mapDateSet(this.dataSet, function (x, y) {
-                if (_this.dataSet[y][x].isProp) {
-                    _this.dataSet[y][x] = new BlankMO();
-                }
-            });
-        };
-        return PropManager;
-    }());
-    Game.PropManager = PropManager;
 })(Game || (Game = {}));
 var Game;
 (function (Game) {
@@ -465,6 +380,9 @@ var Game;
                 || y + this.maxY > height - 1) {
                 return;
             }
+            if (this.cannotMove(x, y, dataSet)) {
+                return;
+            }
             this.x = x;
             this.y = y;
             this.computed();
@@ -486,32 +404,13 @@ var Game;
             signal = signal.sort();
             return signal.pop();
         };
-        Subject.prototype.useBomb = function (dataSet) {
-            var _a = this, x = _a.x, y = _a.y;
-            var bomb = this.props.find(function (property) { return property.type === Game.PropertyType.bomb; });
-            if (bomb) {
-                this.props = this.props.filter(function (item) { return item !== bomb; });
-                bomb.destory(x, y, dataSet);
-            }
-        };
-        Object.defineProperty(Subject.prototype, "vision", {
-            get: function () {
-                var addonVisionByProps = 0;
-                this.props.forEach(function (property) {
-                    addonVisionByProps += property.sight;
-                });
-                return this.originalVision + addonVisionByProps;
-            },
-            enumerable: true,
-            configurable: true
-        });
         Subject.prototype.computed = function () {
             var xSet = this.dataSetMeta
                 .map(function (posision) { return posision.x; })
-                .sort();
+                .sort(function (a, b) { return a < b ? -1 : 1; });
             var ySet = this.dataSetMeta
                 .map(function (posision) { return posision.y; })
-                .sort();
+                .sort(function (a, b) { return a < b ? -1 : 1; });
             this.minX = xSet[0];
             this.minY = ySet[0];
             this.maxX = xSet[xSet.length - 1];
@@ -525,25 +424,12 @@ var Game;
                 y: posision.y + _this.y,
             }); });
         };
+        Subject.prototype.cannotMove = function (x, y, dataSet) {
+            return false;
+        };
         return Subject;
     }());
     Game.Subject = Subject;
-    var BlockSubject = (function (_super) {
-        __extends(BlockSubject, _super);
-        function BlockSubject() {
-            var _this = _super !== null && _super.apply(this, arguments) || this;
-            _this.dataSetMeta = [
-                { x: -1, y: 0 },
-                { x: 1, y: 0 },
-                { x: 0, y: 0 },
-                { x: 0, y: -1 },
-            ];
-            _this.symbol = Game.SYMBOL_CHAR.BLOCK;
-            return _this;
-        }
-        return BlockSubject;
-    }(Subject));
-    Game.BlockSubject = BlockSubject;
 })(Game || (Game = {}));
 var Game;
 (function (Game) {
@@ -560,29 +446,27 @@ var Game;
             this.game = game;
             this.width = 21;
             this.height = 21;
-            this.possibility = 0.01;
+            this.delayTime = 500;
             this.content = '';
             this.levelName = '0';
             this.dataSet = null;
             this.subject = null;
-            this.propManager = new Game.PropManager(this.dataSet);
-            this.subjectPosition = null;
-            this.targetPosition = null;
+            this.subjectPosition = { x: 0, y: 0 };
             this.isPause = false;
             this.onKeyDown = function (event) {
                 _this.order = event.keyCode;
             };
+            this.init();
+        }
+        Level.prototype.init = function () {
             this.subject = new Game.Subject();
             this.reset();
-        }
+        };
         Level.prototype.reset = function () {
             if (!this.dataSet) {
                 this.initMapDataSet();
             }
             this.initSubject();
-            this.propManager = new Game.PropManager(this.dataSet);
-            this.propManager.removeAllProps();
-            this.isPause = false;
         };
         Level.prototype.initSubject = function () {
             if (!this.subjectPosition) {
@@ -591,27 +475,17 @@ var Game;
             var _a = this.subjectPosition, x = _a.x, y = _a.y;
             this.subject.moveTo(x, y, this.dataSet);
         };
-        Level.prototype.initTarget = function () {
-            if (!this.targetPosition) {
-                this.targetPosition = Game.Utils.findBlankPosition(this.dataSet);
-            }
-        };
         Level.prototype.initMapDataSet = function () {
             this.dataSet = [];
-            for (var y_2 = 0; y_2 < this.width; y_2++) {
-                this.dataSet[y_2] = [];
-                for (var x_2 = 0; x_2 < this.height; x_2++) {
-                    if (Game.Utils.possibility(this.possibility)) {
-                        this.dataSet[y_2][x_2] = new Game.ObstacleMO();
-                    }
-                    else {
-                        this.dataSet[y_2][x_2] = new Game.BlankMO();
-                    }
+            for (var y = 0; y < this.width; y++) {
+                this.dataSet[y] = [];
+                for (var x = 0; x < this.height; x++) {
+                    this.mapDataSetHandle(x, y);
                 }
             }
-            this.initTarget();
-            var _a = this.targetPosition, x = _a.x, y = _a.y;
-            this.dataSet[y][x] = new Game.TargetMO();
+        };
+        Level.prototype.mapDataSetHandle = function (x, y) {
+            this.dataSet[y][x] = new Game.BlankMO();
         };
         Level.prototype.render = function () {
             Game.console.clear();
@@ -621,7 +495,7 @@ var Game;
             Game.console.log(this.content);
         };
         Level.prototype.buildHeader = function () {
-            var header = "\n            \u60A8\u73B0\u5728\u5728\u7B2C" + this.levelName + "\u5173\n            \u60A8\u73B0\u5728\u6709" + this.subject.props.length + "\u4EF6\u9053\u5177\uFF1A\n            \u706B\u628A" + (this.subject.props.filter(function (property) { return property.type === Game.PropertyType.torch; }).length || 0) + "\u4EF6\uFF0C\n            \u70B8\u5F39" + (this.subject.props.filter(function (property) { return property.type === Game.PropertyType.bomb; }).length || 0) + "\u4E2A\u3002\n            ------\n            ";
+            var header = "\n            \u8FD9\u91CC\u5199header\n            ";
             this.content += header;
             this.content += '\n';
         };
@@ -654,25 +528,14 @@ var Game;
             this.content = this.content.substr(0, this.content.length - 1);
         };
         Level.prototype.buildMainObject = function (y, x) {
-            var currentX = this.subject.x;
-            var currentY = this.subject.y;
-            if (Game.Utils.calcDistance(currentX, currentY, x, y, this.subject.vision)) {
-                this.content += Game.SYMBOL_CHAR.FOG;
-            }
-            else if (currentX === x && currentY === y) {
-                this.content += Game.SYMBOL_CHAR.YINYANG;
-            }
-            else if (this.subject.inSelf(x, y)) {
-                if (this.isPause) {
-                    this.content += Game.SYMBOL_CHAR.BLOCK;
-                }
-                else {
-                    this.content += this.subject.symbol;
-                }
+            if (this.subject.x === x && this.subject.y === y) {
+                this.content += this.subject.symbol;
             }
             else {
                 this.content += this.dataSet[y][x].symbol;
             }
+        };
+        Level.prototype.processStart = function () {
         };
         Level.prototype.handleControll = function () {
             var keyCode = this.order;
@@ -684,6 +547,18 @@ var Game;
                 }
                 return;
             }
+            switch (keyCode) {
+                case Game.KEYCODE.P:
+                    this.levelPause();
+                    return;
+                case Game.KEYCODE.R:
+                    this.levelReplay();
+                    return;
+            }
+            this.mainKeyHandles(keyCode);
+        };
+        Level.prototype.mainKeyHandles = function (keyCode) {
+            var _a = this.subject, x = _a.x, y = _a.y;
             switch (keyCode) {
                 case Game.KEYCODE.A:
                 case Game.KEYCODE.LEFT:
@@ -701,16 +576,6 @@ var Game;
                 case Game.KEYCODE.DOWN:
                     y += 1;
                     break;
-                case Game.KEYCODE.SPACE:
-                case Game.KEYCODE.B:
-                    this.subject.useBomb(this.dataSet);
-                    break;
-                case Game.KEYCODE.P:
-                    this.levelPause();
-                    return;
-                case Game.KEYCODE.R:
-                    this.levelReplay();
-                    return;
             }
             this.subject.moveTo(x, y, this.dataSet);
         };
@@ -718,14 +583,19 @@ var Game;
             if (this.isPause) {
                 return;
             }
+            return this.mainChecks();
+        };
+        Level.prototype.mainChecks = function () {
             var _a = this.subject, x = _a.x, y = _a.y;
             return this.subject.touch(this.dataSet);
         };
-        Level.prototype.otherActions = function () {
+        Level.prototype.actions = function () {
             if (this.isPause) {
                 return;
             }
-            this.propManager.create();
+            this.mainActions();
+        };
+        Level.prototype.mainActions = function () {
         };
         Level.prototype.levelPause = function () {
             this.isPause = true;
@@ -782,7 +652,7 @@ var Game;
             this.initLevelList();
         }
         GameController.prototype.initLevelList = function () {
-            this.levelList.push(new Game.Level(this));
+            this.levelList.push(new Game.DngLevel(this), new Game.RsBlLevel(this));
         };
         GameController.prototype.useLevel = function (level) {
             var oldLevel = this.currentLevel;
@@ -791,10 +661,11 @@ var Game;
             this.currentLevel = level;
         };
         GameController.prototype.go = function () {
+            this.currentLevel ? this.currentLevel.processStart() : null;
             this.handleControll();
             this.render();
             this.check();
-            this.currentLevel ? this.currentLevel.otherActions() : null;
+            this.currentLevel ? this.currentLevel.actions() : null;
         };
         GameController.prototype.handleControll = function () {
             if (this.gameMode === GameMode.level) {
@@ -833,18 +704,27 @@ var Game;
             this.useLevel(this.levelList[0]);
             this.currentLevel.reset();
         };
+        Object.defineProperty(GameController.prototype, "delay", {
+            get: function () {
+                return this.gameMode === GameMode.level ? this.currentLevel.delayTime : this.delayTime;
+            },
+            enumerable: true,
+            configurable: true
+        });
         GameController.prototype.gameStart = function () {
             var _this = this;
             this.gameMode = GameMode.level;
+            this.currentLevel.bind();
             this.stopId = setInterval(function () {
                 _this.go();
-            }, this.delayTime);
+            }, this.delay);
         };
         GameController.prototype.gameEnd = function () {
             this.gameMode = GameMode.title;
             this.reset();
             clearInterval(this.stopId);
             this.stopId = null;
+            this.currentLevel.unbind();
             this.render();
             Game.console.error('游戏结束！');
         };
@@ -853,13 +733,11 @@ var Game;
             var levelNum = this.levelList.findIndex(function (item) { return item === _this.currentLevel; });
             var nextLevel = this.levelList[levelNum + 1];
             if (nextLevel) {
-                this.currentLevel = nextLevel;
+                this.useLevel(nextLevel);
             }
             else {
                 return this.gameClear();
             }
-            clearInterval(this.stopId);
-            this.stopId = null;
             Game.console.success('恭喜进入下一关！');
         };
         GameController.prototype.gameClear = function () {
@@ -882,6 +760,559 @@ var Game;
         return GameController;
     }());
     Game.GameController = GameController;
+})(Game || (Game = {}));
+var Game;
+(function (Game) {
+    var ObstacleMO = (function (_super) {
+        __extends(ObstacleMO, _super);
+        function ObstacleMO() {
+            var _this = _super !== null && _super.apply(this, arguments) || this;
+            _this.type = Game.ObjectType.OBSTACLE;
+            _this.symbol = Game.SYMBOL_CHAR.OBSTACLE;
+            return _this;
+        }
+        ObstacleMO.prototype.touch = function (subject) {
+            return Game.GameSignal.over;
+        };
+        return ObstacleMO;
+    }(Game.MapObject));
+    Game.ObstacleMO = ObstacleMO;
+    var TargetMO = (function (_super) {
+        __extends(TargetMO, _super);
+        function TargetMO() {
+            var _this = _super !== null && _super.apply(this, arguments) || this;
+            _this.type = Game.ObjectType.TARGET;
+            _this.symbol = Game.SYMBOL_CHAR.TARGET;
+            return _this;
+        }
+        TargetMO.prototype.touch = function (subject) {
+            return Game.GameSignal.continue;
+        };
+        return TargetMO;
+    }(Game.MapObject));
+    Game.TargetMO = TargetMO;
+    var PropMO = (function (_super) {
+        __extends(PropMO, _super);
+        function PropMO(property) {
+            var _this = _super.call(this) || this;
+            _this.property = property;
+            _this.type = Game.ObjectType.PROPS;
+            _this.symbol = '';
+            _this.isProp = true;
+            _this.ontouch = function () { };
+            _this.type = _this.property.type;
+            _this.symbol = Game.SYMBOL_CHAR.getPropertySymbol(_this.property.type);
+            return _this;
+        }
+        PropMO.prototype.touch = function (subject) {
+            subject.props.push(this.property);
+            this.ontouch();
+            return Game.GameSignal.none;
+        };
+        return PropMO;
+    }(Game.MapObject));
+    Game.PropMO = PropMO;
+    var PropManager = (function () {
+        function PropManager(dataSet) {
+            this.dataSet = dataSet;
+            this.MAX_PROP_NUMBER = 1;
+            this.currentPropsNumber = 0;
+            this.basket = [
+                Game.Bomb,
+                Game.Torch,
+            ];
+            this.possibility = 0.1;
+        }
+        PropManager.prototype.create = function (possibility) {
+            var _this = this;
+            if (possibility === void 0) { possibility = this.possibility; }
+            if (Game.Utils.possibility(possibility) && (this.MAX_PROP_NUMBER - this.currentPropsNumber > 0)) {
+                var property = new (Game.Utils.getOne(this.basket))();
+                var propMO = new PropMO(property);
+                var _a = Game.Utils.findBlankPosition(this.dataSet), x_1 = _a.x, y_1 = _a.y;
+                propMO.ontouch = function () {
+                    _this.dataSet[y_1][x_1] = new Game.BlankMO();
+                    _this.currentPropsNumber--;
+                };
+                this.currentPropsNumber++;
+                this.dataSet[y_1][x_1] = propMO;
+            }
+        };
+        PropManager.prototype.removeAllProps = function () {
+            var _this = this;
+            Game.Utils.mapDateSet(this.dataSet, function (x, y) {
+                if (_this.dataSet[y][x].isProp) {
+                    _this.dataSet[y][x] = new Game.BlankMO();
+                }
+            });
+        };
+        return PropManager;
+    }());
+    Game.PropManager = PropManager;
+})(Game || (Game = {}));
+var Game;
+(function (Game) {
+    var DngSubject = (function (_super) {
+        __extends(DngSubject, _super);
+        function DngSubject() {
+            var _this = _super !== null && _super.apply(this, arguments) || this;
+            _this.x = 0;
+            _this.y = 0;
+            _this.props = [
+                new Game.Bomb(),
+            ];
+            _this.originalVision = 3;
+            _this.symbol = Game.SYMBOL_CHAR.SUBJECT;
+            return _this;
+        }
+        DngSubject.prototype.inSelf = function (x, y) {
+            return this.dataSet.some(function (position) {
+                var sameX = position.x === x;
+                var sameY = position.y === y;
+                return sameX && sameY;
+            });
+        };
+        DngSubject.prototype.touch = function (map) {
+            var _this = this;
+            var signal = [];
+            this.dataSet.forEach(function (_a) {
+                var x = _a.x, y = _a.y;
+                signal.push(map[y][x].touch(_this));
+            });
+            signal = signal.sort();
+            return signal.pop();
+        };
+        DngSubject.prototype.useBomb = function (dataSet) {
+            var _a = this, x = _a.x, y = _a.y;
+            var bomb = this.props.find(function (property) { return property.type === Game.PropertyType.bomb; });
+            if (bomb) {
+                this.props = this.props.filter(function (item) { return item !== bomb; });
+                bomb.destory(x, y, dataSet);
+            }
+        };
+        Object.defineProperty(DngSubject.prototype, "vision", {
+            get: function () {
+                var addonVisionByProps = 0;
+                this.props.forEach(function (property) {
+                    addonVisionByProps += property.sight;
+                });
+                return this.originalVision + addonVisionByProps;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        return DngSubject;
+    }(Game.Subject));
+    Game.DngSubject = DngSubject;
+})(Game || (Game = {}));
+var Game;
+(function (Game) {
+    var DngLevel = (function (_super) {
+        __extends(DngLevel, _super);
+        function DngLevel(game) {
+            var _this = _super.call(this, game) || this;
+            _this.game = game;
+            _this.width = 21;
+            _this.height = 21;
+            _this.possibility = 0.2;
+            _this.content = '';
+            _this.levelName = '0';
+            _this.dataSet = null;
+            _this.subject = null;
+            _this.propManager = new Game.PropManager(_this.dataSet);
+            _this.subjectPosition = {
+                x: Math.floor(_this.width / 2),
+                y: Math.floor(_this.height / 2),
+            };
+            _this.targetPosition = null;
+            _this.isPause = false;
+            _this.init();
+            return _this;
+        }
+        DngLevel.prototype.init = function () {
+            this.reset();
+        };
+        DngLevel.prototype.reset = function () {
+            this.initMapDataSet();
+            this.initSubject();
+            this.initTarget();
+            this.propManager = new Game.PropManager(this.dataSet);
+            this.propManager.removeAllProps();
+            this.isPause = false;
+        };
+        DngLevel.prototype.initSubject = function () {
+            if (!this.subjectPosition) {
+                this.subjectPosition = Game.Utils.findBlankPosition(this.dataSet);
+            }
+            var _a = this.subjectPosition, x = _a.x, y = _a.y;
+            this.subject = new Game.DngSubject();
+            this.subject.moveTo(x, y, this.dataSet);
+        };
+        DngLevel.prototype.initTarget = function () {
+            if (!this.targetPosition) {
+                this.targetPosition = Game.Utils.findBlankPosition(this.dataSet);
+            }
+            var _a = this.targetPosition, x = _a.x, y = _a.y;
+            this.dataSet[y][x] = new Game.TargetMO();
+        };
+        DngLevel.prototype.mapDataSetHandle = function (x, y) {
+            if (Game.Utils.possibility(this.possibility)) {
+                this.dataSet[y][x] = new Game.ObstacleMO();
+            }
+            else {
+                this.dataSet[y][x] = new Game.BlankMO();
+            }
+        };
+        DngLevel.prototype.buildHeader = function () {
+            var header = "\n            \u60A8\u73B0\u5728\u5728\u7B2C" + this.levelName + "\u5173\n            \u60A8\u73B0\u5728\u6709" + this.subject.props.length + "\u4EF6\u9053\u5177\uFF1A\n            \u706B\u628A" + (this.subject.props.filter(function (property) { return property.type === Game.PropertyType.torch; }).length || 0) + "\u4EF6\uFF0C\n            \u70B8\u5F39" + (this.subject.props.filter(function (property) { return property.type === Game.PropertyType.bomb; }).length || 0) + "\u4E2A\u3002\n            ------\n            ";
+            this.content += header;
+            this.content += '\n';
+        };
+        DngLevel.prototype.buildMainObject = function (y, x) {
+            var currentX = this.subject.x;
+            var currentY = this.subject.y;
+            if (Game.Utils.calcDistance(currentX, currentY, x, y, this.subject.vision)) {
+                this.content += Game.SYMBOL_CHAR.FOG;
+            }
+            else if (this.subject.inSelf(x, y)) {
+                if (this.isPause) {
+                    this.content += Game.SYMBOL_CHAR.BLOCK;
+                }
+                else {
+                    this.content += this.subject.symbol;
+                }
+            }
+            else {
+                this.content += this.dataSet[y][x].symbol;
+            }
+        };
+        DngLevel.prototype.mainKeyHandles = function (keyCode) {
+            var _a = this.subject, x = _a.x, y = _a.y;
+            switch (keyCode) {
+                case Game.KEYCODE.A:
+                case Game.KEYCODE.LEFT:
+                    x -= 1;
+                    break;
+                case Game.KEYCODE.W:
+                case Game.KEYCODE.UP:
+                    y -= 1;
+                    break;
+                case Game.KEYCODE.D:
+                case Game.KEYCODE.RIGHT:
+                    x += 1;
+                    break;
+                case Game.KEYCODE.S:
+                case Game.KEYCODE.DOWN:
+                    y += 1;
+                    break;
+                case Game.KEYCODE.SPACE:
+                case Game.KEYCODE.B:
+                    this.subject.useBomb(this.dataSet);
+                    break;
+            }
+            this.subject.moveTo(x, y, this.dataSet);
+        };
+        DngLevel.prototype.mainActions = function () {
+            this.propManager.create();
+        };
+        DngLevel.prototype.mainChecks = function () {
+            var _a = this.subject, x = _a.x, y = _a.y;
+            return this.subject.touch(this.dataSet);
+        };
+        return DngLevel;
+    }(Game.Level));
+    Game.DngLevel = DngLevel;
+})(Game || (Game = {}));
+var Game;
+(function (Game) {
+    var BlockMO = (function (_super) {
+        __extends(BlockMO, _super);
+        function BlockMO() {
+            var _this = _super !== null && _super.apply(this, arguments) || this;
+            _this.type = Game.ObjectType.BLOCK;
+            _this.symbol = Game.SYMBOL_CHAR.BLOCK;
+            return _this;
+        }
+        return BlockMO;
+    }(Game.MapObject));
+    Game.BlockMO = BlockMO;
+})(Game || (Game = {}));
+var Game;
+(function (Game) {
+    var dataSetMetaList = [
+        [
+            { x: -1, y: 0 },
+            { x: 1, y: 0 },
+            { x: 0, y: 0 },
+            { x: 0, y: -1 },
+        ],
+        [
+            { x: -1, y: 0 },
+            { x: 0, y: 0 },
+            { x: -1, y: -1 },
+            { x: 0, y: -1 },
+        ],
+        [
+            { x: 0, y: -1 },
+            { x: 0, y: 0 },
+            { x: 0, y: 1 },
+            { x: 1, y: 1 },
+        ],
+        [
+            { x: 0, y: -1 },
+            { x: 0, y: 0 },
+            { x: 1, y: 0 },
+            { x: 1, y: 1 },
+        ],
+        [
+            { x: 0, y: -1 },
+            { x: 0, y: 0 },
+            { x: -1, y: 0 },
+            { x: -1, y: 1 },
+        ],
+        [
+            { x: 0, y: -1 },
+            { x: 0, y: 0 },
+            { x: 0, y: 1 },
+            { x: 0, y: 2 },
+        ],
+    ];
+    var BlockSubject = (function (_super) {
+        __extends(BlockSubject, _super);
+        function BlockSubject() {
+            var _this = _super.call(this) || this;
+            _this.symbol = Game.SYMBOL_CHAR.BLOCK;
+            _this.randomDataSetMeta();
+            _this.computed();
+            return _this;
+        }
+        BlockSubject.prototype.randomDataSetMeta = function () {
+            this.dataSetMeta = Game.Utils.getOne(dataSetMetaList);
+        };
+        BlockSubject.prototype.moveTo = function (x, y, dataSet) {
+            var height = dataSet.length;
+            var width = dataSet[0].length;
+            if (x + this.maxX > width - 1 || x + this.minX < 0) {
+                x = this.x;
+            }
+            if (y + this.maxY > height - 1 || y + this.minY < 0) {
+                y = this.y;
+            }
+            if (this.cannotMove(x, y, dataSet)) {
+                return;
+            }
+            this.x = x;
+            this.y = y;
+            this.computed();
+        };
+        BlockSubject.prototype.somethingInSelf = function (dataSet) {
+            return this.dataSet.some(function (_a) {
+                var x = _a.x, y = _a.y;
+                return dataSet[y][x].realOb;
+            });
+        };
+        BlockSubject.prototype.rotate = function (dataSet) {
+            var _this = this;
+            var newDataMeta = this.dataSetMeta.map(function (position) {
+                var x = -position.y;
+                var y = position.x;
+                return { x: x, y: y };
+            });
+            var validate = newDataMeta.every(function (_a) {
+                var x = _a.x, y = _a.y;
+                x += _this.x;
+                y += _this.y;
+                return dataSet[y] && dataSet[y][x] && dataSet[y][x].type !== Game.ObjectType.BLOCK;
+            });
+            if (validate) {
+                this.dataSetMeta = newDataMeta;
+                this.computed();
+            }
+        };
+        BlockSubject.prototype.cannotMove = function (x, y, dataSet) {
+            if (x === this.x && y === this.y) {
+                return true;
+            }
+            return this.dataSetMeta.some(function (posision) {
+                var X = posision.x + x;
+                var Y = posision.y + y;
+                return dataSet[Y] && dataSet[Y][X] && dataSet[Y][X].type === Game.ObjectType.BLOCK;
+            });
+        };
+        return BlockSubject;
+    }(Game.Subject));
+    Game.BlockSubject = BlockSubject;
+})(Game || (Game = {}));
+var Game;
+(function (Game) {
+    var RsBlLevel = (function (_super) {
+        __extends(RsBlLevel, _super);
+        function RsBlLevel(game) {
+            var _this = _super.call(this, game) || this;
+            _this.game = game;
+            _this.width = 21;
+            _this.height = 21;
+            _this.delayTime = 1000;
+            _this.content = '';
+            _this.levelName = '0';
+            _this.dataSet = null;
+            _this.subject = null;
+            _this.subjectPosition = { x: 10, y: 1 };
+            _this.isPause = false;
+            _this.onKeyDown = function (event) {
+                _this.order = event.keyCode;
+                _this.controll();
+            };
+            _this.init();
+            return _this;
+        }
+        RsBlLevel.prototype.processStart = function () {
+            var _a = this.subject, x = _a.x, y = _a.y;
+            y += 1;
+            this.subject.moveTo(x, y, this.dataSet);
+        };
+        RsBlLevel.prototype.controll = function () {
+            var keyCode = this.order;
+            this.order = null;
+            var _a = this.subject, x = _a.x, y = _a.y;
+            if (this.isPause) {
+                if (keyCode === Game.KEYCODE.P) {
+                    this.levelPlay();
+                }
+                return;
+            }
+            switch (keyCode) {
+                case Game.KEYCODE.P:
+                    this.levelPause();
+                    return;
+                case Game.KEYCODE.R:
+                    this.levelReplay();
+                    return;
+            }
+            this.mainKeyHandles(keyCode);
+            this.render();
+            this.check();
+        };
+        RsBlLevel.prototype.handleControll = function () { };
+        RsBlLevel.prototype.init = function () {
+            this.reset();
+        };
+        RsBlLevel.prototype.reset = function () {
+            this.initMapDataSet();
+            this.initSubject();
+            this.isPause = false;
+        };
+        RsBlLevel.prototype.initSubject = function () {
+            if (!this.subjectPosition) {
+                this.subjectPosition = Game.Utils.findBlankPosition(this.dataSet);
+            }
+            var _a = this.subjectPosition, x = _a.x, y = _a.y;
+            this.subject = new Game.BlockSubject();
+            this.subject.moveTo(x, y, this.dataSet);
+        };
+        RsBlLevel.prototype.buildHeader = function () {
+            var header = "\n            russia block\n            ------\n            ";
+            this.content += header;
+            this.content += '\n';
+        };
+        RsBlLevel.prototype.buildMainObject = function (y, x) {
+            var currentX = this.subject.x;
+            var currentY = this.subject.y;
+            if (currentX === x && currentY === y) {
+                this.content += Game.SYMBOL_CHAR.YINYANG;
+            }
+            else if (this.subject.inSelf(x, y)) {
+                this.content += this.subject.symbol;
+            }
+            else {
+                this.content += this.dataSet[y][x].symbol;
+            }
+        };
+        RsBlLevel.prototype.mainKeyHandles = function (keyCode) {
+            var _a = this.subject, x = _a.x, y = _a.y;
+            switch (keyCode) {
+                case Game.KEYCODE.A:
+                case Game.KEYCODE.LEFT:
+                    x -= 1;
+                    break;
+                case Game.KEYCODE.W:
+                case Game.KEYCODE.UP:
+                    break;
+                case Game.KEYCODE.D:
+                case Game.KEYCODE.RIGHT:
+                    x += 1;
+                    break;
+                case Game.KEYCODE.S:
+                case Game.KEYCODE.DOWN:
+                    y += 1;
+                    break;
+                case Game.KEYCODE.SPACE:
+                    this.subject.rotate(this.dataSet);
+                    break;
+            }
+            this.subject.moveTo(x, y, this.dataSet);
+        };
+        RsBlLevel.prototype.mainChecks = function () {
+            var _this = this;
+            var beStone = this.subject.dataSet.some(function (_a) {
+                var x = _a.x, y = _a.y;
+                if (!_this.dataSet[y + 1]) {
+                    return true;
+                }
+                if (_this.dataSet[y + 1][x].type === Game.ObjectType.BLOCK) {
+                    return true;
+                }
+                if (_this.dataSet[y][x].type === Game.ObjectType.BLOCK) {
+                    return true;
+                }
+                return false;
+            });
+            if (beStone) {
+                var endSignal_1 = false;
+                this.subject.dataSet.forEach(function (_a) {
+                    var x = _a.x, y = _a.y;
+                    _this.dataSet[y][x] = new Game.BlockMO();
+                    if (x === _this.subjectPosition.x && y === _this.subjectPosition.y) {
+                        endSignal_1 = true;
+                    }
+                });
+                if (endSignal_1) {
+                    return Game.GameSignal.over;
+                }
+                this.initSubject();
+            }
+            var markRowIndex = [];
+            this.dataSet.forEach(function (row, index) {
+                var filled = row.every(function (item) {
+                    return item.type === Game.ObjectType.BLOCK;
+                });
+                if (filled) {
+                    markRowIndex.push(index);
+                }
+            });
+            if (markRowIndex.length) {
+                markRowIndex.forEach(function (index) {
+                    _this.dataSet.splice(index, 1);
+                });
+                var addNumber = this.height - this.dataSet.length;
+                while (addNumber > 0) {
+                    var row = [];
+                    var width = this.width;
+                    while (width > 0) {
+                        row.push(new Game.BlankMO());
+                        width--;
+                    }
+                    this.dataSet.unshift(row);
+                    addNumber--;
+                }
+            }
+            return Game.GameSignal.none;
+        };
+        RsBlLevel.prototype.mainActions = function () {
+        };
+        return RsBlLevel;
+    }(Game.Level));
+    Game.RsBlLevel = RsBlLevel;
 })(Game || (Game = {}));
 var game = new Game.GameController();
 game.run();

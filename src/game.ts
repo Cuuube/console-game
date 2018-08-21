@@ -44,22 +44,27 @@ namespace Game {
         }
 
         initLevelList() {
-            this.levelList.push(new Level(this));
+            this.levelList.push(
+                // new Level(this),  // base
+                new DngLevel(this),  // 地牢历险
+                new RsBlLevel(this), // 俄罗斯方块
+            );
         }
 
         useLevel(level: Level) {
             // 解绑老level事件
             // 绑定新level事件，初始化level
-            let oldLevel = this.currentLevel
+            let oldLevel = this.currentLevel;
 
-            oldLevel ? oldLevel.unbind() : void 0
-            level.bind()
-            this.currentLevel = level
+            oldLevel ? oldLevel.unbind() : void 0;
+            level.bind();
+            this.currentLevel = level;
         }
 
         // 进行一节游戏
         go() {
             // 主要流程函数
+            this.currentLevel ? this.currentLevel.processStart() : null;
             // 1. 先执行用户指令，比如移动。全部在数据层次操作
             this.handleControll();
     
@@ -70,7 +75,7 @@ namespace Game {
             this.check();
     
             // 4. 做点其他的...
-            this.currentLevel ? this.currentLevel.otherActions() : null;
+            this.currentLevel ? this.currentLevel.actions() : null;
     
             // 都没问题则，执行下一轮，循环有gameStart方法控制
         }
@@ -104,7 +109,6 @@ namespace Game {
         }
     
     
-        // 可覆盖，条件判定以及处理
         check() {
             /**
              * 检测规则：
@@ -129,15 +133,19 @@ namespace Game {
             this.content = '';
             this.useLevel(this.levelList[0]);
             this.currentLevel.reset();
-            
+        }
+
+        get delay() {
+            return this.gameMode === GameMode.level ? this.currentLevel.delayTime : this.delayTime
         }
     
         // 游戏进行的命令
         gameStart() {
             this.gameMode = GameMode.level;
+            this.currentLevel.bind();
             this.stopId = setInterval(() => {
                 this.go();
-            }, this.delayTime);
+            }, this.delay);
         }
     
         // 游戏结束的命令
@@ -146,6 +154,7 @@ namespace Game {
             this.reset();
             clearInterval(this.stopId);
             this.stopId = null;
+            this.currentLevel.unbind();
 
             this.render();
             console.error('游戏结束！');
@@ -157,12 +166,10 @@ namespace Game {
             let nextLevel = this.levelList[levelNum + 1];
 
             if (nextLevel) {
-                this.currentLevel = nextLevel;
+                this.useLevel(nextLevel);
             } else {
                 return this.gameClear();
             }
-            clearInterval(this.stopId);
-            this.stopId = null;
 
             console.success('恭喜进入下一关！');
         }

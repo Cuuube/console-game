@@ -25,6 +25,9 @@ namespace Game {
                 || y + this.maxY > height - 1) {
                 return;
             }
+            if (this.cannotMove(x, y, dataSet)) {
+                return;
+            }
             this.x = x;
             this.y = y;
             this.computed();
@@ -49,33 +52,13 @@ namespace Game {
             return signal.pop();
         }
 
-        useBomb(dataSet: DataSet) {
-            let { x, y } = this;
-            let bomb = <Bomb>this.props.find(property => property.type === PropertyType.bomb)
-
-            if (bomb) {
-                this.props = this.props.filter(item => item !== bomb);
-                bomb.destory(x, y, dataSet);
-            }
-        }
-
-
-        get vision() {
-            let addonVisionByProps = 0;
-
-            this.props.forEach(property => {
-                addonVisionByProps += property.sight;
-            })
-            return this.originalVision + addonVisionByProps;
-        }
-
         computed() {
             let xSet = this.dataSetMeta
                 .map(posision => posision.x)
-                .sort();
+                .sort((a, b) => a < b ? -1 : 1);
             let ySet = this.dataSetMeta
                 .map(posision => posision.y)
-                .sort();
+                .sort((a, b) => a < b ? -1 : 1);
 
             this.minX = xSet[0];
             this.minY = ySet[0];
@@ -91,15 +74,11 @@ namespace Game {
                 y: posision.y + this.y,
             }))
         }
+
+        // 继承
+        cannotMove(x: number, y: number, dataSet: DataSet) {
+            return false;
+        }
     }
 
-    export class BlockSubject extends Subject {
-        dataSetMeta: TPosision[] = [
-            { x: -1, y: 0 },
-            { x: 1, y: 0 },
-            { x: 0, y: 0 },
-            { x: 0, y: -1 },
-        ]
-        symbol: string = SYMBOL_CHAR.BLOCK;
-    }
 }

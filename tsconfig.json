@@ -23,6 +23,15 @@
     "./src/subject.ts",
     "./src/level.ts",
     "./src/game.ts",
+
+    "./src/dungeon/object.ts",
+    "./src/dungeon/subject.ts",
+    "./src/dungeon/level.ts",
+
+    "./src/russia_block/object.ts",
+    "./src/russia_block/subject.ts",
+    "./src/russia_block/level.ts",
+
     "./index.ts",
   ]
 }
