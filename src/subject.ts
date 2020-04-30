@@ -3,15 +3,14 @@ namespace Game {
         x: number = 0;
         y: number = 0;
         props: Property[] = [];
-        dataSetMeta: TPosision[] = [
+        dataSetMeta: TPosision[] = [ // 自身实体的点集，相对坐标（自身为0，左上为负，右下为正）
             { x: 0, y: 0 },
         ];
-        dataSet: TPosision[] = [];
-        maxX: number = 0;
-        maxY: number = 0;
-        minX: number = 0;
-        minY: number = 0;
-        originalVision: number = 10;
+        dataSet: TPosision[] = []; // 自身在地图中的点集
+        maxX: number = 0; // 自身实体在地图最大x坐标
+        maxY: number = 0; // 自身实体在地图最大y坐标
+        minX: number = 0; // 自身实体在地图最小x坐标
+        minY: number = 0; // 自身实体在地图最小y坐标
         symbol: string = SYMBOL_CHAR.SUBJECT;
 
         moveTo(x: number, y: number, dataSet: DataSet) {

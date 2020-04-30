@@ -17,16 +17,6 @@ namespace Game {
             });
         }
 
-        touch(map: DataSet) {
-            let signal: number[] = [];
-            this.dataSet.forEach(({ x, y }) => {
-                signal.push(map[y][x].touch(this));
-            })
-            signal = signal.sort();
-            // 将最可能有问题的优先弹出
-            return signal.pop();
-        }
-
         useBomb(dataSet: DataSet) {
             let { x, y } = this;
             let bomb = <Bomb>this.props.find(property => property.type === PropertyType.bomb)

@@ -1,18 +1,16 @@
 namespace Game {
-    export class DngLevel extends Level {
+    export class SnakeLevel extends Level {
         // 配置常量
         width = 21;
         height = 21;
-        possibility = 0.2;
     
         // 变量
-        order: number; // 用户指令寄存
+        order: number = KEYCODE.UP; // 用户指令寄存
         content = '';
         levelName: string = '0' // 关卡数
 
         dataSet: DataSet = null; // 地图点集
-        subject: DngSubject = null;
-        propManager = new PropManager(this.dataSet);
+        subject: SnakeSubject = null;
 
         subjectPosition: TPosision = {
             x: Math.floor(this.width / 2),
@@ -37,21 +35,16 @@ namespace Game {
             // 放一个target
             this.initTarget();
 
-            this.propManager = new PropManager(this.dataSet);
-            this.propManager.removeAllProps();
-
             this.isPause = false;
         }
 
         // 初始化主题角色
         protected initSubject() {
-            if (!this.subjectPosition) {
-                this.subjectPosition = Utils.findBlankPosition(this.dataSet);
-            }
+            
             let { x, y } = this.subjectPosition;
 
-            this.subject = new DngSubject();
-            this.subject.moveTo(x, y, this.dataSet);
+            this.subject = new SnakeSubject();
+            // this.subject.moveTo(x, y, this.dataSet);
         }
 
         // 初始化目标位置
@@ -64,21 +57,16 @@ namespace Game {
             this.dataSet[y][x] = new TargetMO();
         }
     
-        // 初始化地图handle
-        initMapObject(x: number, y: number) {
-            if (Utils.possibility(this.possibility)) {
-                this.dataSet[y][x] = new ObstacleMO();
-            } else {
-                this.dataSet[y][x] = new BlankMO();
-            }
-        }
+        // // 初始化地图handle
+        // initMapObject(x: number, y: number) {
+        //     this.dataSet[y][x] = new BlankMO();
+        // }
         
         protected buildHeader() {
             let header = `
-            您现在在第${this.levelName}关
-            您现在有${this.subject.props.length}件道具：
-            火把${ this.subject.props.filter(property => property.type === PropertyType.torch).length || 0}件，
-            炸弹${ this.subject.props.filter(property => property.type === PropertyType.bomb).length || 0}个。
+            贪吃蛇
+            按键：${this.order}
+            ${this.subject.x}, ${this.subject.y}
             ------
             `
             this.content += header;
@@ -92,64 +80,78 @@ namespace Game {
             let currentY = this.subject.y;
 
             // 判断是否在点集里
-            if (
-                // 明亮自身周围
-                Utils.calcDistance(
-                    currentX,
-                    currentY,
-                    x,
-                    y,
-                    this.subject.vision,
-                )
-            ) {
-                this.content += SYMBOL_CHAR.FOG;
+            if (x === currentX && y === currentY) {
+                this.content += SYMBOL_CHAR.YINYANG;
             } else if (this.subject.inSelf(x, y)) {
-                if (this.isPause) {
-                    this.content += SYMBOL_CHAR.BLOCK;
-                } else {
-                    this.content += this.subject.symbol;
-                }
+                this.content += SYMBOL_CHAR.BLOCK;
             } else {
                 this.content += this.dataSet[y][x].symbol
             }
         }
-    
-        protected mainKeyHandles(keyCode: number) {
+
+        public onKeyDown = (event: KeyboardEvent) => {
+            let keyCode = event.keyCode;
             let { x, y } = this.subject;
+
+            switch (keyCode) {
+                case KEYCODE.A:
+                case KEYCODE.LEFT: // left
+                    if (this.subject.inSelf(x - 1, y)) {
+                        return;
+                    }
+                case KEYCODE.W:
+                case KEYCODE.UP: // top
+                    if (this.subject.inSelf(x, y - 1)) {
+                        return;
+                    }
+                case KEYCODE.D:
+                case KEYCODE.RIGHT: // right
+                    if (this.subject.inSelf(x + 1, y)) {
+                        return;
+                    }
+                case KEYCODE.S:
+                case KEYCODE.DOWN: // down
+                    if (this.subject.inSelf(x, y + 1)) {
+                        return;
+                    }
+            }
+            this.order = keyCode;
+        }
+    
+        public handleControll() {
+            let keyCode = this.order;
+            let { x, y } = this.subject;
+
             // 更改坐标
             switch (keyCode) {
                 case KEYCODE.A:
                 case KEYCODE.LEFT: // left
-                    x -= 1;
+                    this.subject.moveTo(x - 1, y, this.dataSet);
                     break;
                 case KEYCODE.W:
                 case KEYCODE.UP: // top
-                    y -= 1;
+                    this.subject.moveTo(x, y - 1, this.dataSet);
                     break;
                 case KEYCODE.D:
                 case KEYCODE.RIGHT: // right
-                    x += 1;
+                    this.subject.moveTo(x + 1, y, this.dataSet);
+                    this.order = KEYCODE.RIGHT;
                     break;
                 case KEYCODE.S:
                 case KEYCODE.DOWN: // down
-                    y += 1;
-                    break;
-                case KEYCODE.SPACE:
-                case KEYCODE.B: // 炸弹
-                    this.subject.useBomb(this.dataSet);
+                    this.subject.moveTo(x, y + 1, this.dataSet);
                     break;
             }
-            // 重新赋值坐标
-            this.subject.moveTo(x, y, this.dataSet);
+
         }
     
 
         mainActions() {
-            
-            this.propManager.create();
         }
 
         mainChecks() {
+            (window as any).sub = this.subject;
+            (window as any).lev = this;
             let { x, y } = this.subject;
 
             return this.subject.touch(this.dataSet);

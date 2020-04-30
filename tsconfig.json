@@ -22,6 +22,7 @@
     "./src/object.ts",
     "./src/subject.ts",
     "./src/level.ts",
+    "./src/display.ts",
     "./src/game.ts",
 
     "./src/dungeon/object.ts",
@@ -31,6 +32,10 @@
     "./src/russia_block/object.ts",
     "./src/russia_block/subject.ts",
     "./src/russia_block/level.ts",
+
+    "./src/snake/object.ts",
+    "./src/snake/subject.ts",
+    "./src/snake/level.ts",
 
     "./index.ts",
   ]

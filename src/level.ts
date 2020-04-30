@@ -12,11 +12,27 @@ namespace Game {
     export type DataSet = MapObject[][];
 
     export interface ILevel {
-        levelName: string;
-        width: number,
-        height: number,
-        dataSet: DataSet;
-        subject: Subject;
+        levelName: string; // 关卡名
+        width: number, // 地图宽度
+        height: number, // 地图高度
+        dataSet: DataSet, // 地图数据点集
+        subject: Subject, // 主角
+
+        onKeyDown: Function,
+
+        // initMapDataSet(): void,
+        // initSubject(): void,
+        
+        // 游戏一回合所需方法
+        beforeStepStart(): void, // 回合开始前
+        handleControll(): void, // 控制转化为位移/动作
+        render(): void, // 渲染动作后的新画面
+        check(): number, // 检测渲染后画面是否能继续下去
+        afterStepEnd(): void,
+
+        reset(): void,
+        unbind(): void,
+        bind(): void,
     }
 
     export enum GameSignal { // 按严重性排序
@@ -28,30 +44,28 @@ namespace Game {
     
     export class Level implements ILevel {
         // 配置常量
-        width = 21;
-        height = 21;
+        width = 21; // 地图宽度
+        height = 21; // 地图高度
+
+        // 每一帧延迟时间。每一帧都有一次运算，太短可能贼卡
         delayTime = 500;
     
         // 变量
         order: number; // 用户指令寄存
-        content = '';
+        content = ''; // 画布内容
         levelName: string = '0' // 关卡数
 
         dataSet: DataSet = null; // 地图点集
-        subject: Subject = null;
+        subject: Subject = null; // 主人公（可操作点）
 
-        subjectPosition: TPosision = { x: 0, y: 0 };
-        isPause: boolean = false;
+        subjectPosition: TPosision = { x: 0, y: 0 }; // 主人公开始位置
+        isPause: boolean = false; // 是否是暂停状态
 
-        onKeyDown = (event: KeyboardEvent) => {
+        public onKeyDown = (event: KeyboardEvent) => {
             this.order = event.keyCode;
         }
 
         constructor(public game: GameController) {
-            this.init();
-        }
-
-        init() {
             this.subject = new Subject();
             this.reset();
         }
@@ -60,7 +74,7 @@ namespace Game {
         // 只重置为地图刚开始，保留道具
         // 重置地图以及主角属性
 
-        reset() {
+        public reset() {
             // 清空关卡数据
             if (!this.dataSet) {
                 this.initMapDataSet();
@@ -69,7 +83,7 @@ namespace Game {
         }
 
         // 初始化主题角色
-        initSubject() {
+        protected initSubject() {
             if (!this.subjectPosition) {
                 this.subjectPosition = Utils.findBlankPosition(this.dataSet);
             }
@@ -80,22 +94,22 @@ namespace Game {
 
     
         // 初始化地图，要继承
-        initMapDataSet() {
+        protected initMapDataSet() {
             this.dataSet = [];
             // 若有x行，y列，期望buildContenthis.dataSet[y][x]来取值：
             for (let y = 0; y < this.width; y++) {
                 this.dataSet[y] = [];
                 for (let x = 0; x < this.height; x++) {
-                    this.mapDataSetHandle(x, y);
+                    this.initMapObject(x, y);
                 }
             }
         }
 
-        mapDataSetHandle(x: number, y: number) {
+        protected initMapObject(x: number, y: number) {
             this.dataSet[y][x] = new BlankMO();
         }
     
-        render() {
+        public render() {
             console.clear();
             this.content = '';
             this.buildHeader();
@@ -105,7 +119,7 @@ namespace Game {
         }
 
         // 需要继承
-        buildHeader() {
+        protected buildHeader() {
             let header = `
             这里写header
             `
@@ -113,7 +127,7 @@ namespace Game {
             this.content += '\n';
         }
     
-        buildContent() {
+        protected buildContent() {
             // console.log(currentX, currentY)
             for (let i = 0; i < this.width; i++) {
                 if (i === 0) {
@@ -148,7 +162,7 @@ namespace Game {
         }
     
         // 需要继承，绘制主要物体
-        buildMainObject(y: number, x: number) {
+        protected buildMainObject(y: number, x: number) {
             if (this.subject.x === x && this.subject.y === y) {
                 this.content += this.subject.symbol;
             } else {
@@ -156,11 +170,11 @@ namespace Game {
             }
         }
 
-        processStart() {
+        public beforeStepStart() {
             // 流程开始做点事
         }
     
-        handleControll() {
+        public handleControll() {
             let keyCode = this.order;
             
             this.order = null;
@@ -186,7 +200,7 @@ namespace Game {
         }
 
         // 需要继承，对于用户按键的处理
-        mainKeyHandles(keyCode: number) {
+        protected mainKeyHandles(keyCode: number) {
             // 更改坐标
             let { x, y } = this.subject;
 
@@ -213,7 +227,7 @@ namespace Game {
         }
     
         // 需要继承，条件判定以及处理
-        check(): number {
+        public check(): number {
             if (this.isPause) {
                 return;
             }
@@ -222,14 +236,14 @@ namespace Game {
         }
 
         // 继承
-        mainChecks() {
+        protected mainChecks(): number {
             let { x, y } = this.subject;
 
             return this.subject.touch(this.dataSet);
         }
 
         // 需要继承
-        actions() {
+        public afterStepEnd() {
             if (this.isPause) {
                 return;
             }
@@ -241,27 +255,27 @@ namespace Game {
         }
 
         // 关卡暂停与重新开始
-        levelPause() {
+        public levelPause() {
             this.isPause = true;
         }
 
         // 关卡重新激活
-        levelPlay() {
+        public levelPlay() {
             this.isPause = false;
         }
 
         // 关卡重开
-        levelReplay() {
+        public levelReplay() {
             // TODO
             this.reset();
         }
 
-        unbind() {
+        public unbind() {
             // 解绑所有键盘事件
             eventRegister.off('keydown', this.onKeyDown)
         }
 
-        bind() {
+        public bind() {
             // 绑定所有键盘事件
             eventRegister.on('keydown', this.onKeyDown)
         }

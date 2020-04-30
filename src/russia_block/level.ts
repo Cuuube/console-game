@@ -18,18 +18,18 @@ namespace Game {
         isPause: boolean = false;
 
         // --- 将每次渲染接受一次按键改为按键和渲染脱离
-        processStart() {
+        beforeStepStart() {
             // 流程开始,y自增一
             let { x, y } = this.subject;
 
             y += 1;
             this.subject.moveTo(x, y, this.dataSet);
         }
-        onKeyDown = (event: KeyboardEvent) => {
+        public onKeyDown = (event: KeyboardEvent) => {
             this.order = event.keyCode;
             this.controll();
         }
-        controll() {
+        protected controll() {
             let keyCode = this.order;
             this.order = null;
 
@@ -54,15 +54,10 @@ namespace Game {
             this.render();
             this.check();
         }
-        handleControll() {}
         // --------
 
         constructor(public game: GameController) {
             super(game);
-            this.init();
-        }
-
-        init() {
             this.reset();
         }
 
@@ -70,7 +65,7 @@ namespace Game {
         // 只重置为地图刚开始，保留道具
         // 重置地图以及主角属性
 
-        reset() {
+        public reset() {
             // 清空关卡数据
             this.initMapDataSet();
             this.initSubject();
@@ -79,7 +74,7 @@ namespace Game {
         }
 
         // 初始化主题角色
-        initSubject() {
+        protected initSubject() {
             if (!this.subjectPosition) {
                 this.subjectPosition = Utils.findBlankPosition(this.dataSet);
             }
@@ -90,11 +85,11 @@ namespace Game {
         }
     
         // // 初始化地图handle
-        // mapDataSetHandle(x: number, y: number) {
+        // initMapObject(x: number, y: number) {
         //     this.dataSet[y][x] = new BlankMO();
         // }
         
-        buildHeader() {
+        protected buildHeader() {
             let header = `
             russia block
             ------
@@ -105,7 +100,7 @@ namespace Game {
     
     
         // 可覆盖，绘制主要物体
-        buildMainObject(y: number, x: number) {
+        protected buildMainObject(y: number, x: number) {
             let currentX = this.subject.x;
             let currentY = this.subject.y;
 
@@ -119,7 +114,7 @@ namespace Game {
             }
         }
     
-        mainKeyHandles(keyCode: number) {
+        protected mainKeyHandles(keyCode: number) {
             let { x, y } = this.subject;
 
             // 更改坐标

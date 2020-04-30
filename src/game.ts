@@ -21,6 +21,7 @@ namespace Game {
 
         private gameMode: number = GameMode.title; // 游戏模式
        
+        // ----------- 游戏初始化 -------------
         onKeyDown = (event: KeyboardEvent) => {
             let keyCode = event.keyCode;
 
@@ -46,8 +47,9 @@ namespace Game {
         initLevelList() {
             this.levelList.push(
                 // new Level(this),  // base
-                new DngLevel(this),  // 地牢历险
+                // new DngLevel(this),  // 地牢历险
                 new RsBlLevel(this), // 俄罗斯方块
+                // new SnakeLevel(this),  // 贪吃蛇
             );
         }
 
@@ -61,10 +63,11 @@ namespace Game {
             this.currentLevel = level;
         }
 
+        // ----------- 游戏执行 -------------
         // 进行一节游戏
         go() {
             // 主要流程函数
-            this.currentLevel ? this.currentLevel.processStart() : null;
+            this.currentLevel ? this.currentLevel.beforeStepStart() : null;
             // 1. 先执行用户指令，比如移动。全部在数据层次操作
             this.handleControll();
     
@@ -75,7 +78,7 @@ namespace Game {
             this.check();
     
             // 4. 做点其他的...
-            this.currentLevel ? this.currentLevel.actions() : null;
+            this.currentLevel ? this.currentLevel.afterStepEnd() : null;
     
             // 都没问题则，执行下一轮，循环有gameStart方法控制
         }
@@ -127,6 +130,9 @@ namespace Game {
                 }
             }
         }
+
+        // ----------- 其他全局工具方法 -------------
+
     
         // 重置全部变量，视为游戏重新开始，关卡到第一关
         reset() {
